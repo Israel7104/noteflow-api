@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { errorResponse, logServerError, validationErrorResponse } from '@/lib/api-response';
 import { query } from '@/lib/db';
 import { requireAuth } from '@/lib/request-auth';
 
@@ -28,7 +29,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     ]);
 
     if (note.length === 0) {
-      return NextResponse.json({ error: 'Nota no encontrada' }, { status: 404 });
+      return errorResponse('Nota no encontrada.', 404, { code: 'NOTE_NOT_FOUND' });
     }
 
     const items = await query<ChecklistItem>(
@@ -37,8 +38,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     );
 
     return NextResponse.json(items);
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('notes/[id]/checklist-items GET', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }
 
@@ -51,7 +53,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const parsed = createItemSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ errors: parsed.error.issues }, { status: 400 });
+      return validationErrorResponse(parsed.error.issues);
     }
 
     const { id } = await context.params;
@@ -62,7 +64,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     ]);
 
     if (note.length === 0) {
-      return NextResponse.json({ error: 'Nota no encontrada' }, { status: 404 });
+      return errorResponse('Nota no encontrada.', 404, { code: 'NOTE_NOT_FOUND' });
     }
 
     const [item] = await query<ChecklistItem>(
@@ -71,7 +73,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     );
 
     return NextResponse.json(item, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('notes/[id]/checklist-items POST', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }

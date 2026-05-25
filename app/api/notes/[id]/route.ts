@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { errorResponse, logServerError, validationErrorResponse } from '@/lib/api-response';
 import { query } from '@/lib/db';
 import { requireAuth } from '@/lib/request-auth';
 
@@ -47,12 +48,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     );
 
     if (!note) {
-      return NextResponse.json({ error: 'Nota no encontrada' }, { status: 404 });
+      return errorResponse('Nota no encontrada.', 404, { code: 'NOTE_NOT_FOUND' });
     }
 
     return NextResponse.json(note);
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('notes/[id] GET', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }
 
@@ -65,7 +67,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const parsed = patchNoteSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ errors: parsed.error.issues }, { status: 400 });
+      return validationErrorResponse(parsed.error.issues);
     }
 
     const { id } = await context.params;
@@ -103,12 +105,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     );
 
     if (!updatedNote) {
-      return NextResponse.json({ error: 'Nota no encontrada' }, { status: 404 });
+      return errorResponse('Nota no encontrada.', 404, { code: 'NOTE_NOT_FOUND' });
     }
 
     return NextResponse.json(updatedNote);
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('notes/[id] PATCH', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }
 
@@ -125,11 +128,12 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     );
 
     if (deleted.length === 0) {
-      return NextResponse.json({ error: 'Nota no encontrada' }, { status: 404 });
+      return errorResponse('Nota no encontrada.', 404, { code: 'NOTE_NOT_FOUND' });
     }
 
     return new NextResponse(null, { status: 204 });
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('notes/[id] DELETE', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }

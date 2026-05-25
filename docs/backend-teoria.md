@@ -102,7 +102,6 @@ Ejemplo practico:
 
 ## Pruebas de endpoints (plantilla)
 
-Se recomienda ejecutar pruebas con Bruno o Insomnia y guardar en este documento capturas o payloads reales:
 
 - GET /api/notes -> 200
 - POST /api/notes -> 201
@@ -115,3 +114,6 @@ Se recomienda ejecutar pruebas con Bruno o Insomnia y guardar en este documento 
 - DELETE /api/checklist-items/:itemId -> 204 / 404
 - POST /api/auth/register -> 201 / 400
 - POST /api/auth/login -> 200 / 400 / 401
+
+
+

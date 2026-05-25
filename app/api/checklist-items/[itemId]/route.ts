@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { errorResponse, logServerError, validationErrorResponse } from '@/lib/api-response';
 import { query } from '@/lib/db';
 import { requireAuth } from '@/lib/request-auth';
 
@@ -27,7 +28,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ itemI
     const parsed = patchItemSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ errors: parsed.error.issues }, { status: 400 });
+      return validationErrorResponse(parsed.error.issues);
     }
 
     const { itemId } = await context.params;
@@ -42,7 +43,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ itemI
     );
 
     if (ownerCheck.length === 0) {
-      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 });
+      return errorResponse('Item no encontrado.', 404, { code: 'ITEM_NOT_FOUND' });
     }
 
     const fields: string[] = [];
@@ -69,8 +70,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ itemI
     );
 
     return NextResponse.json(item);
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('checklist-items/[itemId] PATCH', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }
 
@@ -92,11 +94,12 @@ export async function DELETE(request: Request, context: { params: Promise<{ item
     );
 
     if (deleted.length === 0) {
-      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 });
+      return errorResponse('Item no encontrado.', 404, { code: 'ITEM_NOT_FOUND' });
     }
 
     return new NextResponse(null, { status: 204 });
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('checklist-items/[itemId] DELETE', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { errorResponse, logServerError, validationErrorResponse } from '@/lib/api-response';
 import { hashPassword, signToken } from '@/lib/auth';
 import { query } from '@/lib/db';
 
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
     const parsed = registerSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ errors: parsed.error.issues }, { status: 400 });
+      return validationErrorResponse(parsed.error.issues);
     }
 
     const email = parsed.data.email.toLowerCase();
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     const existingUser = await query<ExistingUser>('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
 
     if (existingUser.length > 0) {
-      return NextResponse.json({ error: 'El email ya esta registrado.' }, { status: 400 });
+      return errorResponse('El email ya esta registrado.', 409, { code: 'EMAIL_CONFLICT' });
     }
 
     const [user] = await query<CreatedUser>(
@@ -44,7 +45,8 @@ export async function POST(request: Request) {
     const token = signToken(user.id, user.email);
 
     return NextResponse.json({ user, token }, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('auth/register POST', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }

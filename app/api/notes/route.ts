@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { errorResponse, logServerError, validationErrorResponse } from '@/lib/api-response';
 import { query } from '@/lib/db';
 import { requireAuth } from '@/lib/request-auth';
 
@@ -18,10 +19,11 @@ type NoteRecord = {
 const noteSchema = z.object({
   title: z.string().min(3, 'El titulo debe tener al menos 3 caracteres.'),
   type: z.enum(['note', 'checklist', 'idea']),
-  content: z.string().optional(),
+  content: z.string().nullable().optional(),
   color: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, 'El color debe tener formato hexadecimal #RRGGBB.')
+    .nullable()
     .optional(),
 });
 
@@ -35,8 +37,9 @@ export async function GET(request: Request) {
       [auth.userId]
     );
     return NextResponse.json(notes);
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('notes GET', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }
 
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
     const result = noteSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({ errors: result.error.issues }, { status: 400 });
+      return validationErrorResponse(result.error.issues);
     }
 
     const { title, type, content, color } = result.data;
@@ -62,7 +65,8 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json(note, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('notes POST', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }

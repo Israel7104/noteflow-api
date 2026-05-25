@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { comparePassword, signToken } from '@/lib/auth';
+import { errorResponse, logServerError, validationErrorResponse } from '@/lib/api-response';
 import { query } from '@/lib/db';
 
 type UserRecord = {
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     const parsed = loginSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ errors: parsed.error.issues }, { status: 400 });
+      return validationErrorResponse(parsed.error.issues);
     }
 
     const email = parsed.data.email.toLowerCase();
@@ -32,13 +33,18 @@ export async function POST(request: Request) {
     );
 
     if (!user) {
-      return NextResponse.json({ error: 'Credenciales invalidas.' }, { status: 401 });
+      return errorResponse('Credenciales invalidas.', 401, { code: 'INVALID_CREDENTIALS' });
+    }
+
+    if (!user.password_hash) {
+      logServerError('auth/login missing password_hash', { userId: user.id });
+      return errorResponse('Credenciales invalidas.', 401, { code: 'INVALID_CREDENTIALS' });
     }
 
     const isValidPassword = await comparePassword(parsed.data.password, user.password_hash);
 
     if (!isValidPassword) {
-      return NextResponse.json({ error: 'Credenciales invalidas.' }, { status: 401 });
+      return errorResponse('Credenciales invalidas.', 401, { code: 'INVALID_CREDENTIALS' });
     }
 
     const token = signToken(user.id, user.email);
@@ -50,7 +56,8 @@ export async function POST(request: Request) {
       },
       token,
     });
-  } catch {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  } catch (error) {
+    logServerError('auth/login POST', error);
+    return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
 }

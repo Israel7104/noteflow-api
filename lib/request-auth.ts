@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
+import type { NextResponse } from 'next/server';
 
 import { getBearerToken, verifyToken } from '@/lib/auth';
+import { errorResponse } from '@/lib/api-response';
 
 export function requireAuth(request: Request): { userId: string } | { errorResponse: NextResponse } {
   const token = getBearerToken(request.headers.get('authorization'));
 
   if (!token) {
     return {
-      errorResponse: NextResponse.json({ error: 'No autorizado' }, { status: 401 }),
+      errorResponse: errorResponse('No autorizado.', 401, { code: 'UNAUTHORIZED' }),
     };
   }
 
@@ -15,7 +16,7 @@ export function requireAuth(request: Request): { userId: string } | { errorRespo
 
   if (!payload) {
     return {
-      errorResponse: NextResponse.json({ error: 'Token invalido' }, { status: 401 }),
+      errorResponse: errorResponse('Token invalido.', 401, { code: 'INVALID_TOKEN' }),
     };
   }
 
