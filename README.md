@@ -8,11 +8,12 @@
 
 # NoteFlow API
 
-API REST para NoteFlow (web y movil), construida con Next.js App Router, PostgreSQL (Neon), validacion con Zod y autenticacion JWT.
+API REST para NoteFlow (web y movil), construida con Next.js App Router, PostgreSQL (Neon), validacion con Zod y verificacion de ID tokens de Firebase.
 
 ## Caracteristicas
 
-- Registro e inicio de sesion con JWT.
+- Verificacion de ID tokens de Firebase con firebase-admin.
+- Provision automatica de usuario en DB por firebase_uid cuando aun no existe.
 - Endpoints protegidos por header Authorization Bearer.
 - CRUD de notas y checklists.
 - Gestion de items de checklist por nota.
@@ -27,7 +28,8 @@ API REST para NoteFlow (web y movil), construida con Next.js App Router, Postgre
 | TypeScript | Tipado estricto |
 | PostgreSQL + Neon | Persistencia de datos |
 | Zod | Validacion de payloads |
-| bcryptjs + jsonwebtoken | Password hashing y JWT |
+| firebase-admin | Verificacion de ID token Firebase |
+| bcryptjs + jsonwebtoken | Endpoints auth legacy (opcional) |
 
 ## Variables de entorno
 
@@ -36,6 +38,9 @@ Crear archivo .env.local con:
 ```env
 DATABASE_URL=postgresql://...
 JWT_SECRET=tu_secreto_largo
+FIREBASE_PROJECT_ID=tu-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@tu-project-id.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
 # Opcionales para CORS
 CORS_ALLOWED_ORIGINS=http://localhost:8081,https://tu-frontend.app
@@ -44,7 +49,8 @@ CORS_ALLOW_CREDENTIALS=false
 
 Notas:
 
-- DATABASE_URL y JWT_SECRET son obligatorias.
+- DATABASE_URL, FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL y FIREBASE_PRIVATE_KEY son obligatorias.
+- JWT_SECRET solo es necesaria si mantienes /api/auth/login y /api/auth/register.
 - Si no defines CORS_ALLOWED_ORIGINS, se permite * solo cuando CORS_ALLOW_CREDENTIALS=false.
 
 ## Arranque local
@@ -60,7 +66,7 @@ API local:
 
 ## Endpoints
 
-### Auth
+### Auth (legacy opcional)
 
 - POST /api/auth/register
 - POST /api/auth/login
@@ -86,7 +92,7 @@ Response 200 o 201:
 }
 ```
 
-### Notes (Bearer token)
+### Notes (Bearer token Firebase)
 
 - GET /api/notes
 - POST /api/notes
@@ -94,7 +100,7 @@ Response 200 o 201:
 - PATCH /api/notes/:id
 - DELETE /api/notes/:id
 
-### Checklist items (Bearer token)
+### Checklist items (Bearer token Firebase)
 
 - GET /api/notes/:id/checklist-items
 - POST /api/notes/:id/checklist-items
@@ -104,7 +110,7 @@ Response 200 o 201:
 Header esperado:
 
 ```http
-Authorization: Bearer <token>
+Authorization: Bearer <firebase_id_token>
 ```
 
 ## Formato de error
@@ -178,12 +184,14 @@ sql/
 ## Deploy en Vercel
 
 1. Conectar repo en Vercel.
-2. Configurar variables DATABASE_URL y JWT_SECRET.
-3. Configurar CORS_ALLOWED_ORIGINS con los dominios frontend.
-4. Desplegar.
-5. Verificar OPTIONS y login desde navegador.
+2. Configurar variables DATABASE_URL, FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL y FIREBASE_PRIVATE_KEY.
+3. Si mantienes auth legacy, configurar tambien JWT_SECRET.
+4. Configurar CORS_ALLOWED_ORIGINS con los dominios frontend.
+5. Desplegar.
+6. Verificar OPTIONS y endpoints protegidos enviando ID token Firebase.
 
 ## Troubleshooting
 
 - Error de red en frontend web: revisar CORS y que el dominio backend no tenga proteccion SSO de Vercel para llamadas publicas.
-- 500 en login/register: validar DATABASE_URL, JWT_SECRET y tabla users en la base de datos.
+- 401 Token invalido: validar FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY y que el frontend envie un ID token Firebase vigente.
+- 500 en endpoints protegidos: validar DATABASE_URL y tabla users con columna firebase_uid.

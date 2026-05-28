@@ -17,7 +17,7 @@ const createItemSchema = z.object({
 });
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if ('errorResponse' in auth) return auth.errorResponse;
 
   try {
@@ -45,7 +45,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if ('errorResponse' in auth) return auth.errorResponse;
 
   try {

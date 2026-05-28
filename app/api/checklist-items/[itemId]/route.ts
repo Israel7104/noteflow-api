@@ -20,7 +20,7 @@ const patchItemSchema = z
   .refine((value) => Object.keys(value).length > 0, 'Debes enviar al menos un campo para actualizar.');
 
 export async function PATCH(request: Request, context: { params: Promise<{ itemId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if ('errorResponse' in auth) return auth.errorResponse;
 
   try {
@@ -77,7 +77,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ itemI
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ itemId: string }> }) {
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if ('errorResponse' in auth) return auth.errorResponse;
 
   try {
