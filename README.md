@@ -42,6 +42,14 @@ FIREBASE_PROJECT_ID=tu-project-id
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@tu-project-id.iam.gserviceaccount.com
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
+# AWS S3 (subida de imagenes por URL firmada)
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=mi-bucket-noteflow
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
+# Opcional: CDN o dominio publico del bucket
+AWS_S3_PUBLIC_BASE_URL=https://mi-cdn.com
+
 # Opcionales para CORS
 CORS_ALLOWED_ORIGINS=http://localhost:8081,https://tu-frontend.app
 CORS_ALLOW_CREDENTIALS=false
@@ -50,6 +58,7 @@ CORS_ALLOW_CREDENTIALS=false
 Notas:
 
 - DATABASE_URL, FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL y FIREBASE_PRIVATE_KEY son obligatorias.
+- Para subir imagenes a S3, tambien son obligatorias AWS_REGION, AWS_S3_BUCKET, AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY.
 - JWT_SECRET solo es necesaria si mantienes /api/auth/login y /api/auth/register.
 - Si no defines CORS_ALLOWED_ORIGINS, se permite * solo cuando CORS_ALLOW_CREDENTIALS=false.
 
@@ -106,6 +115,31 @@ Response 200 o 201:
 - POST /api/notes/:id/checklist-items
 - PATCH /api/checklist-items/:itemId
 - DELETE /api/checklist-items/:itemId
+
+### Uploads (Bearer token Firebase)
+
+- POST /api/uploads/presign
+
+Request body:
+
+```json
+{
+	"purpose": "avatar",
+	"contentType": "image/jpeg",
+	"extension": "jpg"
+}
+```
+
+Response 200:
+
+```json
+{
+	"signedUrl": "https://...",
+	"publicUrl": "https://...",
+	"key": "avatars/<userId>/<uuid>.jpg",
+	"expiresIn": 300
+}
+```
 
 Header esperado:
 
