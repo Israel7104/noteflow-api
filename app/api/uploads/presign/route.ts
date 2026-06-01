@@ -5,7 +5,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { errorResponse, logServerError, validationErrorResponse } from '@/lib/api-response';
-import { requireAuth } from '@/lib/request-auth';
+import { getBearerToken } from '@/lib/auth';
+import { getFirebaseAdminAuth } from '@/lib/firebase-admin';
 import { createS3Client, getS3Config } from '@/lib/s3';
 
 export const runtime = 'nodejs';
@@ -46,8 +47,19 @@ function buildPublicUrl(region: string, bucket: string, key: string, publicBaseU
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAuth(request);
-  if ('errorResponse' in auth) return auth.errorResponse;
+  const token = getBearerToken(request.headers.get('authorization'));
+  if (!token) {
+    return errorResponse('No autorizado.', 401, { code: 'UNAUTHORIZED' });
+  }
+
+  let firebaseUid: string;
+
+  try {
+    const decoded = await getFirebaseAdminAuth().verifyIdToken(token);
+    firebaseUid = decoded.uid;
+  } catch {
+    return errorResponse('Token invalido.', 401, { code: 'INVALID_TOKEN' });
+  }
 
   try {
     const body = await request.json();
@@ -66,7 +78,7 @@ export async function POST(request: Request) {
     const config = getS3Config();
     const client = createS3Client();
     const finalExtension = resolveExtension(contentType, extension);
-    const key = buildKey(auth.userId, purpose, finalExtension);
+    const key = buildKey(firebaseUid, purpose, finalExtension);
 
     const command = new PutObjectCommand({
       Bucket: config.bucket,
@@ -84,6 +96,26 @@ export async function POST(request: Request) {
       expiresIn: 300,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+
+    if (/AWS_REGION|AWS_S3_BUCKET|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY/.test(message)) {
+      return errorResponse('Configuracion AWS incompleta en el backend.', 500, {
+        code: 'S3_CONFIG_ERROR',
+      });
+    }
+
+    if (/InvalidAccessKeyId|SignatureDoesNotMatch|AccessDenied|security token included in the request is invalid/i.test(message)) {
+      return errorResponse('Credenciales AWS invalidas o sin permisos para S3.', 500, {
+        code: 'S3_AUTH_ERROR',
+      });
+    }
+
+    if (/FIREBASE_PROJECT_ID|FIREBASE_CLIENT_EMAIL|FIREBASE_PRIVATE_KEY/.test(message)) {
+      return errorResponse('Configuracion de Firebase Admin incompleta en el backend.', 500, {
+        code: 'FIREBASE_CONFIG_ERROR',
+      });
+    }
+
     logServerError('uploads presign POST', error);
     return errorResponse('Error interno.', 500, { code: 'INTERNAL_ERROR' });
   }
